@@ -365,7 +365,7 @@ O-bucks to the winners"""
 			# Player will recieve what they initially bet, as well as a portion of the losing pot equal to the percent
 			# of what they contributed to the winning pot
 			factorOfWinnings = playerTotal/winning_pot
-			winners[user] = playerTotal + (factorOfWinnings * losing_pot)
+			winners[user] = playerTotal + int(factorOfWinnings * losing_pot)
 			Economy.add_balance(user, winners[user])
 		# Sort dict by winnings ¯\_(ツ)_/¯
 		winners = dict(sorted(winners.items(), key=lambda item: item[1], reverse=True))
