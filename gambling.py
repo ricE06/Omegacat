@@ -293,6 +293,17 @@ O-bucks to the winners"""
 		except ValueError:
 			await ctx.send("Game ID could not be parsed!")
 			return
+		if option_id is None:
+			await ctx.send(f"Format: `$endbet [game_id] [winning_option]`")
+			return
+		try:
+			option_id = int(option_id)
+			if option_id < 0:
+				await ctx.send("Option ID could not be parsed!")
+				return
+		except ValueError:
+			await ctx.send("Option ID could not be parsed!")
+			return
 		
 		options = self.get_from_meta(game_id, "options").split(",")
 		optionsLen = len(options)
@@ -339,6 +350,12 @@ O-bucks to the winners"""
 			else:
 				losing_pot += b[2]
 
+		if len(winners) == 0:
+			await ctx.send("Ended game with topic: \""+title+"\", winning option: **`\""+options[int(option_id)]+"\"`**")
+			await ctx.send("*`There were no winners`*")
+			return
+
+
 		# Calculate winnings per user
 		for user in winners:
 			winningBets = self.get_bets_from_user(game_id, user, int(option_id))
@@ -350,6 +367,8 @@ O-bucks to the winners"""
 			factorOfWinnings = playerTotal/winning_pot
 			winners[user] = playerTotal + (factorOfWinnings * losing_pot)
 			Economy.add_balance(user, winners[user])
+		# Sort dict by winnings ¯\_(ツ)_/¯
+		winners = dict(sorted(winners.items(), key=lambda item: item[1]).reverse())
 		
 		await ctx.send("Ended game with topic: \""+title+"\", winning option: **`\""+options[int(option_id)]+"\"`**")
 	
