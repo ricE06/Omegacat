@@ -41,8 +41,8 @@ lives = 3
 
 print("a")
 
-# cogs = ("economy", "reaper", "gambling", "utility", "upgrades")
-cogs = ("utility", "upgrades")
+cogs = ("economy", "reaper", "gambling", "utility", "upgrades")
+#cogs = ("utility", "upgrades")
 async def setup(client):
     for cog in cogs:
         await client.load_extension(cog)
