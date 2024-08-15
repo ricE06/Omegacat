@@ -368,7 +368,7 @@ O-bucks to the winners"""
 			winners[user] = playerTotal + (factorOfWinnings * losing_pot)
 			Economy.add_balance(user, winners[user])
 		# Sort dict by winnings ¯\_(ツ)_/¯
-		winners = dict(sorted(winners.items(), key=lambda item: item[1]).reverse())
+		winners = dict(sorted(winners.items(), key=lambda item: item[1], reverse=True))
 		
 		await ctx.send("Ended game with topic: \""+title+"\", winning option: **`\""+options[int(option_id)]+"\"`**")
 	
