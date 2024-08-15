@@ -375,7 +375,7 @@ Listing options for bet "Will horse A win?":\n\
 ╔═════════════════════╗\n\
 ║ ID ║   Option   Pot ║\n\
 ╟─────────────────────╢\n\
-║ 0  ║ Yes it will	0 ║\n\
+║ 0  ║ Yes it will  0 ║\n\
 ║ 1  ║ No it wont   0 ║\n\
 ╚═════════════════════╝\n\
 """
