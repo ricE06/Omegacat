@@ -207,13 +207,13 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 
 		option_title = options[int(option_id)]
 
-		## Checks that the user has enough money
-		#if Economy.get_balance(user_id) < int(bet_amount):
-		#	if Economy.available_daily(user_id):
-		#		await ctx.send("You don't have enough O-bucks to bet this amount! However, you can collect some with `$daily`.")
-		#	else:
-		#		await ctx.send("You don't have enough O-bucks to bet this amount!")
-		#	return 
+		# Checks that the user has enough money
+		if Economy.get_balance(user_id) < int(bet_amount):
+			if Economy.available_daily(user_id):
+				await ctx.send("You don't have enough O-bucks to bet this amount! However, you can collect some with `$daily`.")
+			else:
+				await ctx.send("You don't have enough O-bucks to bet this amount!")
+			return 
 
 		# Creates row in table 
 		cur.execute(f"INSERT INTO game_{game_id} (user_id, bet_option, bet_amount) values ({user_id}, {option_id}, {bet_amount})")
@@ -372,12 +372,12 @@ Example usage:  $createbet Will horse A win?,Yes it will,No it won't \
 This will create the following: \n\
 \n\
 Listing options for bet "Will horse A win?":\n\
-╔═══════════╦═══════════════════╗\n\
-║ Option ID ║   Option	  Pot ║\n\
-╟───────────╫───────────────────╢\n\
-║	 0	 ║ Yes it will	0  ║\n\
-║	 1	 ║ No it wont	 0  ║\n\
-╚═══════════╩═══════════════════╝\n\
+╔═════════════════════╗\n\
+║ ID ║   Option   Pot ║\n\
+╟─────────────────────╢\n\
+║ 0  ║ Yes it will	0 ║\n\
+║ 1  ║ No it wont   0 ║\n\
+╚═════════════════════╝\n\
 """
 		bet_options = None
 		bet_title = None
@@ -416,12 +416,12 @@ will be treated as individual bets."""
 		except ValueError or TypeError:
 			await ctx.send("Invalid bet amount!")
 			return
-		creator_id = ctx.author.id
+		user_id = ctx.author.id
 		Economy = self.client.get_cog("Economy")
 		if bet_amount <= 0:
-			bet_amount = Economy.get_balance(creator_id)
+			bet_amount = Economy.get_balance(user_id)
 			await ctx.send("You must bet a positive value! Going all in instead...")
-		if not self.check_valid_bet(creator_id, bet_amount):
+		if not self.check_valid_bet(user_id, bet_amount):
 			await ctx.send("You don't have enough money, and I'm not in the mood for welfare today. Get lost.")
 			return
 		bet_list = self.parse_roulette_input(args)
@@ -437,23 +437,23 @@ will be treated as individual bets."""
 
 		# Processes output and adds to user balance		
 		if result == "0":
-			Economy.add_balance(creator_id, -bet_amount)
+			Economy.add_balance(user_id, -bet_amount)
 			await ctx.send(f"The wheel spun a 0 and you lost {bet_amount} O-bucks! Better luck next time.")
 			return
 		elif result == "00":
-			cur = Economy.get_balance(creator_id)
+			cur = Economy.get_balance(user_id)
 			lose_amount = min(cur, 2*bet_amount)
-			Economy.add_balance(creator_id, -lose_amount)
+			Economy.add_balance(user_id, -lose_amount)
 			await ctx.send(f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
 			return
 		result = int(result)
 		if result in bet_list:
 			win_amount = int(multiplier * bet_amount)
-			Economy.add_balance(creator_id, win_amount)
+			Economy.add_balance(user_id, win_amount)
 			await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
 			return
 		else:
-			Economy.add_balance(creator_id, -bet_amount)
+			Economy.add_balance(user_id, -bet_amount)
 			await ctx.send(f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
 			return
 
