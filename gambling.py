@@ -9,17 +9,12 @@ import asyncio
 import sqlite3
 
 import table2ascii
-from table2ascii import table2ascii as t2a, PresetStyle
+from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 
 # Connect to the database
 con = sqlite3.connect("betting.db")
 cur = con.cursor()
 
-#cur.execute(f"CREATE TABLE meta (game_id int primary key, title text, creator_id int default 0, active int default 1, options text,server int default 0, total_pot int default 0)")
-#con.commit()
-#cur.execute(f"INSERT INTO meta (game_id, title, creator_id, active, server) \
-#	VALUES (0, 0, 0, 0, 0)")
-#con.commit()
 
 class Gambling(commands.Cog):
 	def __init__(self, client):
@@ -150,7 +145,7 @@ class Gambling(commands.Cog):
 		return res.fetchall()
 
 	def truncateStr(self, data, chars):
-		return (data[:chars-3] + '...') if len(data) > chars else data
+		return (data[:chars-1] + '…') if len(data) > chars else data
 
 	async def get_username(self, user_id):
 		"""Helper function to do the process of getting User object and username in one step."""
@@ -268,13 +263,11 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 			title = game[1]
 			creator_id = game[2]
 			options = game[4]
-			#game_bets = self.get_game(i)
 			game_pot = game[6]
-			#for j,x in enumerate(game_bets):
-			#	game_pot += x[2]
-			list_formatted.append((game_id, self.truncateStr(title, 25), await self.get_username(creator_id), self.truncateStr(options, 25), game_pot))
+
+			list_formatted.append((game_id, self.truncateStr(title, 30), await self.get_username(creator_id), self.truncateStr(options, 18), game_pot))
 		list_header = ("ID", "Title", "Creator", "Options", "Pot")
-		output = t2a(header=list_header, body=list_formatted, first_col_heading=True)
+		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
 		await ctx.send(f"Listing all active betting topics:```\n{output}\n```")
 
 
@@ -413,7 +406,6 @@ Listing options for bet "Will horse A win?":\n\
 			await ctx.send("You need to specify a title and options!")
 			return
 		creator_id = ctx.author.id
-		#Economy = self.client.get_cog("Economy")
 		
 		self.create_game(ctx.guild.id, bet_title, bet_options, creator_id)
 		await ctx.send("Created new game with topic: '"+bet_title+"' and options: '"+bet_options+"'")
