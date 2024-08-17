@@ -9,37 +9,31 @@ import asyncio
 import sqlite3
 
 import table2ascii
-from table2ascii import table2ascii as t2a, PresetStyle
+from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 
 # Connect to the database
 con = sqlite3.connect("betting.db")
 cur = con.cursor()
 
-#cur.execute(f"CREATE TABLE meta (game_id int primary key, title text, creator_id int default 0, active int default 1, options text,server int default 0, total_pot int default 0)")
-#con.commit()
-#cur.execute(f"INSERT INTO meta (game_id, title, creator_id, active, server) \
-#	VALUES (0, 0, 0, 0, 0)")
-#con.commit()
-
 class Gambling(commands.Cog):
 	def __init__(self, client):
 		self.client = client
-		self.roulette_aliases = {"red": ("r", "red"), "black": ("b", "black"), "street": ("street", "str", "row"), 1: ("1st", "first", "112"), 2: ("2nd", "second", "212"), 3: ("3rd", "third", "312")}
+		self.roulette_aliases = {"red": ("r", "red"), "black": ("b", "black"), "street": ("street", "str", "row"), 1: ("1st", "first", "112"), 2: ("2nd", "second", "212"), 3: ("3rd", "third", "312"), 37:"0", 38:"00"}
 
 
-	def check_valid_bet(self, creator_id, bet_amount):
+	def check_valid_bet(self, user_id, bet_amount):
 		Economy = self.client.get_cog("Economy")
-		return bet_amount <= Economy.get_balance(creator_id)
+		return (bet_amount <= Economy.get_balance(user_id)) and (bet_amount > 0)
 
 	def roll_roulette(self):
-		"Rolls the roulette wheel. Because 0 and 00 are different, this returns a string that can be cast into int."
+		"Rolls the roulette wheel. Because 0 and 00 are different, this returns an int representation of 37->0 and 38->00."
 		raw = random.randint(1, 38)
 		print(raw)
-		if raw == 37:
-			return "0"
-		elif raw == 38:
-			return "00"
-		return str(raw)
+		#if raw == 37:
+		#	return "0"
+		#elif raw == 38:
+		#	return "00"
+		return raw
 
 	def parse_roulette_input(self, args):
 		"""Converts arguments into a list of all the numbers that would result in a win. Assumes len(args)>0."""
@@ -80,12 +74,28 @@ class Gambling(commands.Cog):
 				new_bet = int(args[index])
 				if new_bet <= 36 and new_bet >= 1 and new_bet not in bets:
 					bets.append(new_bet)
+				elif args[index] == "0" and 37 not in bets:
+					bets.append(37)
+				elif args[index] == "00" and 38 not in bets:
+					bets.append(38)
+				
 			except ValueError:
 				pass
 			index += 1
 
 		return bets
 	
+	def convert_betlist_to_string(self, bet_list):
+		outstr = ""
+		for bet in bet_list:
+			if bet == 37:
+				outstr += "0"
+			elif bet == 38:
+				outstr += "00"
+			else:
+				outstr += str(bet)
+			outstr += ","
+		return outstr[:-1]
 
 	def get_from_game(self, game_id, row, attribute="bet_amount"):
 		"""Returns any attribute from a game in its own table. If it does not exist, returns None."""
@@ -150,7 +160,7 @@ class Gambling(commands.Cog):
 		return res.fetchall()
 
 	def truncateStr(self, data, chars):
-		return (data[:chars-3] + '...') if len(data) > chars else data
+		return (data[:chars-1] + '…') if len(data) > chars else data
 
 	async def get_username(self, user_id):
 		"""Helper function to do the process of getting User object and username in one step."""
@@ -268,13 +278,11 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 			title = game[1]
 			creator_id = game[2]
 			options = game[4]
-			#game_bets = self.get_game(i)
 			game_pot = game[6]
-			#for j,x in enumerate(game_bets):
-			#	game_pot += x[2]
-			list_formatted.append((game_id, self.truncateStr(title, 25), await self.get_username(creator_id), self.truncateStr(options, 25), game_pot))
+
+			list_formatted.append((game_id, self.truncateStr(title, 30), await self.get_username(creator_id), self.truncateStr(options, 18), game_pot))
 		list_header = ("ID", "Title", "Creator", "Options", "Pot")
-		output = t2a(header=list_header, body=list_formatted, first_col_heading=True)
+		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
 		await ctx.send(f"Listing all active betting topics:```\n{output}\n```")
 
 
@@ -413,7 +421,6 @@ Listing options for bet "Will horse A win?":\n\
 			await ctx.send("You need to specify a title and options!")
 			return
 		creator_id = ctx.author.id
-		#Economy = self.client.get_cog("Economy")
 		
 		self.create_game(ctx.guild.id, bet_title, bet_options, creator_id)
 		await ctx.send("Created new game with topic: '"+bet_title+"' and options: '"+bet_options+"'")
@@ -431,7 +438,7 @@ will be treated as individual bets."""
 			await ctx.send("You need to place a bet!")
 			return
 		try:
-			bet_amount = int(bet_amount)
+			bet_amount = abs(int(bet_amount))
 		except ValueError or TypeError:
 			await ctx.send("Invalid bet amount!")
 			return
@@ -451,29 +458,32 @@ will be treated as individual bets."""
 		# Simulates roulette
 		multiplier = (36.0 / len(bet_list))-1
 		result = self.roll_roulette()
-		await ctx.send(f"You betted {bet_amount} O-bucks on {bet_list}, with a multiplier of {int(multiplier*100)/100}. Good luck!")
+		bet_list_str = self.convert_betlist_to_string(bet_list)
+		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
 		await asyncio.sleep(3)
 
 		# Processes output and adds to user balance		
-		if result == "0":
-			Economy.add_balance(user_id, -bet_amount)
-			await ctx.send(f"The wheel spun a 0 and you lost {bet_amount} O-bucks! Better luck next time.")
-			return
-		elif result == "00":
-			cur = Economy.get_balance(user_id)
-			lose_amount = min(cur, 2*bet_amount)
-			Economy.add_balance(user_id, -lose_amount)
-			await ctx.send(f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
-			return
 		result = int(result)
 		if result in bet_list:
-			win_amount = int(multiplier * bet_amount)
-			Economy.add_balance(user_id, win_amount)
-			await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
+			if result == 38:
+				cur = Economy.get_balance(user_id)
+				lose_amount = min(cur, 2*bet_amount)
+				Economy.add_balance(user_id, -lose_amount)
+				await ctx.send(f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+			else:
+				win_amount = int(multiplier * bet_amount)
+				Economy.add_balance(user_id, win_amount)
+				await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
 			return
 		else:
-			Economy.add_balance(user_id, -bet_amount)
-			await ctx.send(f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
+			if result == 38:
+				cur = Economy.get_balance(user_id)
+				lose_amount = min(cur, 2*bet_amount)
+				Economy.add_balance(user_id, -lose_amount)
+				await ctx.send(f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
+			else:
+				Economy.add_balance(user_id, -bet_amount)
+				await ctx.send(f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
 			return
 
 	@commands.command(name="cogtest")
