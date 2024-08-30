@@ -15,6 +15,9 @@ from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 con = sqlite3.connect("betting.db")
 cur = con.cursor()
 
+#cur.execute(f"CREATE TABLE meta (game_id int primary key, title text, description text, creator_id int default 0, active int default 1, options text,server int default 0, total_pot int default 0, status int default 0, type int default 0)")
+#con.commit()
+
 class Gambling(commands.Cog):
 	def __init__(self, client):
 		self.client = client
@@ -126,7 +129,7 @@ class Gambling(commands.Cog):
 
 	def get_sorted_games(self):
 		"""Returns a tuple of tuples of all games, sorted from highest pot to lowest pot."""
-		res = cur.execute(f"SELECT game_id, title, creator_id, active, options, server, total_pot FROM meta ORDER BY total_pot DESC")
+		res = cur.execute(f"SELECT game_id, title, description, creator_id, active, options, server, total_pot, status, type FROM meta ORDER BY total_pot DESC")
 		return res.fetchall()
 
 	def get_next_id(self):
@@ -143,15 +146,16 @@ class Gambling(commands.Cog):
 		cur.execute(f"CREATE TABLE {name} (user_id int default 0, bet_option int default 0, bet_amount int default 0)")
 		# con.commit()
 
-	def create_game(self, server_id, game_title, options, creator_id):
+	def create_game(self, server_id, game_title, game_description, options, creator_id):
 		"""Enters a meta entry for the game, activates it, and creates a table for it."""
 		game_id = self.get_next_id()
-		game_title = ''.join(e for e in game_title if (e.isalnum() or e in [' ', ',', '?']))
-		options = ''.join(e for e in options if (e.isalnum() or e in [' ', ',', '?']))
+		game_title = ''.join(e for e in game_title if (e.isalnum() or e not in ['"', '\'']))
+		game_description = ''.join(e for e in game_description if (e.isalnum() or e not in ['"', '\'']))
+		options = ''.join(e for e in options if (e.isalnum() or e not in ['"', '\'']))
 		self.create_game_table(game_id)
 		now = int(time.time())
-		cur.execute(f"INSERT INTO meta (game_id, title, creator_id, active, options, server) \
-			VALUES ({game_id}, '{game_title}', {creator_id}, 1, '{options}',{server_id})")
+		cur.execute(f"INSERT INTO meta (game_id, title, description, creator_id, active, options, server, status, type) \
+			VALUES ({game_id}, '{game_title}', '{game_description}', {creator_id}, 1, '{options}', {server_id}, 0, 0)")
 		con.commit()
 	
 	def get_game(self, game_id):
@@ -200,7 +204,8 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 		total_pot = self.get_from_meta(game_id, "total_pot")
 		options = self.get_from_meta(game_id, "options").split(",")
 		optionsLen = len(options)
-
+		status = self.get_from_meta(game_id, "status")
+		
 		isActive = self.get_from_meta(game_id, "active") == 1
 		if isActive == False:
 			await ctx.send("You can only affect active betting topics!")
@@ -213,6 +218,11 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 				return
 		except ValueError:
 			await ctx.send("Option ID must be a positive integer less than {optionsLen}!")
+			return
+
+		# Make sure topic is still accepting bets
+		if status == 1:
+			await ctx.send("This topic is no longer accepting new bets. Check in later to see what the final result is!")
 			return
 
 		option_title = options[int(option_id)]
@@ -234,6 +244,41 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 
 		Economy.add_balance(user_id, -int(bet_amount))
 
+	@commands.command(name="nomorebets", aliases=["nmb"])
+	async def nomorebets(self, ctx, game_id = None):
+		"""Stops allowing bets, so nobody can place late bets and gain an advantage. Do this before results are released."""
+		if game_id is None:
+			await ctx.send(f"Format: `$nomorebets [game_id]`")
+			return
+		try:
+			game_id = int(game_id)
+			if game_id <= 0 or game_id >= self.get_next_id():
+				await ctx.send("Game ID could not be parsed!")
+				return
+		except ValueError:
+			await ctx.send("Game ID could not be parsed!")
+			return
+
+		# Make sure the user is the one that created the bet
+		user_id = ctx.author.id
+		creator_id = self.get_from_meta(game_id, "creator_id")
+		title = self.get_from_meta(game_id, "title")
+		
+		isActive = self.get_from_meta(game_id, "active") == 1
+		if isActive == False:
+			await ctx.send("You can only affect active betting topics!")
+			return
+
+		if user_id != creator_id:
+			await ctx.send("You must be the creator of the bet to end new bets!")
+			return
+
+		self.set_to_meta(game_id, 1, "status")
+
+		await ctx.send(f"Status successfully changed.\nBets for topic \n**`\"{title}\"`**\nAre no longer accepted")
+
+
+
 	@commands.command(name="listbetoptions", aliases=["lbo"])
 	async def listbetoptions(self, ctx, game_id = None):
 		"""Returns a list of all options for a bet"""
@@ -251,6 +296,9 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 
 		list_formatted = []
 		title = self.get_from_meta(game_id, "title")
+		description = self.get_from_meta(game_id, "description")
+		if description == "":
+			description = "*No description*"
 		options = self.get_from_meta(game_id, "options").split(",")
 		completedText = "***completed***" if self.get_from_meta(game_id, "active") == 0 else "ongoing"
 		game_bets = self.get_game(game_id)
@@ -261,8 +309,8 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 					option_pot += b[2]
 			list_formatted.append((j, x, option_pot))
 		list_header = ("Option ID", "Option", "Pot")
-		output = t2a(header=list_header, body=list_formatted, first_col_heading=True)
-		await ctx.send(f"Listing options for {completedText} betting topic \n**`\"{title}\"`**:```\n{output}\n```")
+		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
+		await ctx.send(f"Listing options for {completedText} betting topic \n**`\"{title}\"`**\n**Description:**\n{description}```\n{output}\n```")
 
 
 	@commands.command(name="listbets", aliases=["lb"])
@@ -271,17 +319,24 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 		list_formatted = []
 		sorted_meta = self.get_sorted_games()
 		for game in sorted_meta:
-			isActive = game[3]
+			isActive = game[4]
 			if isActive != 1:
 				continue
 			game_id = game[0]
 			title = game[1]
-			creator_id = game[2]
-			options = game[4]
-			game_pot = game[6]
+			creator_id = game[3]
+			description = game[2]
+			options = game[5]
+			game_pot = game[7]
+			status = game[8]
+			if status == 0:
+				status = "ongoing"
+			elif status == 1:
+				status = "closed"
+			game_type = game[9]
 
-			list_formatted.append((game_id, self.truncateStr(title, 30), await self.get_username(creator_id), self.truncateStr(options, 18), game_pot))
-		list_header = ("ID", "Title", "Creator", "Options", "Pot")
+			list_formatted.append((game_id, self.truncateStr(title, 30), await self.get_username(creator_id), self.truncateStr(options, 18), game_pot, status))
+		list_header = ("ID", "Title", "Creator", "Options", "Pot", "Status")
 		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
 		await ctx.send(f"Listing all active betting topics:```\n{output}\n```")
 
@@ -384,7 +439,7 @@ O-bucks to the winners"""
 		for key in winners:
 			list_formatted.append((await self.get_username(key), winners[key]))
 		list_header = ("User", "Winnings")
-		output = t2a(header=list_header, body=list_formatted, first_col_heading=True)
+		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
 		await ctx.send(f"Winnings:```\n{output}\n```")
 
 	
@@ -422,7 +477,7 @@ Listing options for bet "Will horse A win?":\n\
 			return
 		creator_id = ctx.author.id
 		
-		self.create_game(ctx.guild.id, bet_title, bet_options, creator_id)
+		self.create_game(ctx.guild.id, bet_title, "", bet_options, creator_id)
 		await ctx.send("Created new game with topic: '"+bet_title+"' and options: '"+bet_options+"'")
 		
 
