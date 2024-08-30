@@ -23,7 +23,7 @@ class Gambling(commands.Cog):
 
 	def check_valid_bet(self, user_id, bet_amount):
 		Economy = self.client.get_cog("Economy")
-		return (bet_amount <= Economy.get_balance(user_id)) and (bet_amount > 0)
+		return (bet_amount <= Economy.get_balance(user_id)) and (bet_amount > 0) and (Economy.get_balance(user_id) > 0)
 
 	def roll_roulette(self):
 		"Rolls the roulette wheel. Because 0 and 00 are different, this returns an int representation of 37->0 and 38->00."

@@ -55,7 +55,7 @@ class Economy(commands.Cog):
 		"""Changes the balance of a user by change. If the user does not exist, a new row is created.
 		user_id: id of the user (int)
 		change: change of their balance, can be positive or negative (int)"""
-		new_bal = change + self.get_balance(user_id)
+		new_bal = int(change + self.get_balance(user_id))
 		self.set_balance(user_id, new_bal)
 
 	def get_last_daily(self, user_id):
@@ -147,7 +147,7 @@ class Economy(commands.Cog):
 		if ctx.author.id == user_id:
 			await ctx.send("You can't give money to yourself!")
 			return
-		if amount > self.get_balance(ctx.author.id):
+		if amount > self.get_balance(ctx.author.id) or amount < 0:
 			await ctx.send("You don't have enough money!")
 			return
 
