@@ -137,12 +137,13 @@ class Utility(commands.Cog):
 		"""Returns a list of tuples (user_id, name) taking a certain class (i.e. nondefault entries). Returns the empty list if no class exists."""
 		if class_num not in self.get_column_names():
 			return []
-		res = cur.execute(f"SELECT id, name, {class_num} FROM courseloads")
+		res = cur.execute(f"SELECT id, name, `{class_num}` FROM courseloads")
 		raw = res.fetchall()
 		print(raw)
 		output = []
 		for entry in raw:
-			if entry[2] != "x":
+			print(entry)
+			if len(str(entry[2])) > 1:
 				output.append(entry[1:])
 		return output
 
@@ -244,6 +245,14 @@ class Utility(commands.Cog):
 		else:
 			await ctx.send(", ".join([name for name, entry in taking]))
 
+	@commands.command(name="editname", aliases=["setname"])
+	async def edit_name(self, ctx, new_name):
+		"""Changes the name in the database and creates a new row if one does not exist."""
+		self.modify_courseload(ctx.author.id, ())
+		cur.execute(f"UPDATE courseloads SET name = '{new_name}' WHERE id={ctx.author.id}")
+		con.commit()
+		await ctx.send("Name successfully added.")
+
 	@commands.command(name="blacklist")
 	@admin
 	async def blacklist(self, ctx, target):
@@ -254,6 +263,7 @@ class Utility(commands.Cog):
 		cur.execute(f"DELETE FROM courseloadsk WHERE id = {strip(target)}")
 		con.commit()
 		await ctx.send("User added to blacklist and entries deleted.")
+
 
 
 async def setup(client):
