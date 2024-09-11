@@ -271,7 +271,7 @@ class Utility(commands.Cog):
 		"""Creates a .JSON file listing all messages in #polls, with an array of all reactions and user reactors"""
 		await ctx.send("Gathering all messages in polls channel, this may take a while...")
 		pollsDict = {'messages':[]}
-		pollschannel=self.client.get_channel(1283421562514706476)
+		pollschannel=self.client.get_channel(1189032054822817832)
 		async for message in pollschannel.history():
 			content = message.content
 			if "\"" in content[0] or "“" in content[0] and "(open)" not in content: # make sure it is probably a poll message
