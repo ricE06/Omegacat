@@ -267,12 +267,15 @@ class Utility(commands.Cog):
 
 	@commands.command(name="compilepolldata")
 	@admin
-	async def compilepolldata(self, ctx):
+	async def compilepolldata(self, ctx, messagelimit=None):
 		"""Creates a .JSON file listing all messages in #polls, with an array of all reactions and user reactors"""
-		await ctx.send("Gathering all messages in polls channel, this may take a while...")
+		numMessages = "all"
+		if messagelimit != None:
+			numMessages = str(messagelimit)
+		await ctx.send("Gathering {numMessages} messages in polls channel, this may take a while...")
 		pollsDict = {'messages':[]}
 		pollschannel=self.client.get_channel(1189032054822817832)
-		async for message in pollschannel.history():
+		async for message in pollschannel.history(limit=messagelimit):
 			content = message.content
 			if "\"" in content[0] or "“" in content[0] and "(open)" not in content: # make sure it is probably a poll message
 				if len(message.reactions) > 1:
