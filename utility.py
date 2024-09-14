@@ -272,7 +272,8 @@ class Utility(commands.Cog):
 		numMessages = "all"
 		if messagelimit != None:
 			numMessages = str(messagelimit)
-		await ctx.send("Gathering {numMessages} messages in polls channel, this may take a while...")
+			messagelimit = int(messagelimit)
+		await ctx.send(f"Gathering {numMessages} messages in polls channel, this may take a while...")
 		pollsDict = {'messages':[]}
 		pollschannel=self.client.get_channel(1189032054822817832)
 		async for message in pollschannel.history(limit=messagelimit):
