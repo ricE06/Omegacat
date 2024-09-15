@@ -278,6 +278,39 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 		await ctx.send(f"Status successfully changed.\nBets for topic \n**`\"{title}\"`**\nAre no longer accepted")
 
 
+	@commands.command(name="mybets")
+	async def mybets(self, ctx):
+		"""Returns a list of all options and topics you have bet on"""
+
+		outputStr = ""
+		creator_id = ctx.author.id
+		userName = await self.get_username(creator_id)
+		for game_id in range(0,self.get_next_id()):
+			title = self.get_from_meta(game_id, "title")
+			options = self.get_from_meta(game_id, "options")
+			if options == None:
+				continue
+			options = options.split(",")
+			if self.get_from_meta(game_id, "active") == 0:
+				continue
+			game_bets = self.get_game(game_id)
+
+			optionBets = {}
+			hadBets = False
+			for k,b in enumerate(game_bets):
+				if b[0] == creator_id:
+					if b[1] in optionBets:
+						optionBets[b[1]] += b[2]
+					else:
+						optionBets[b[1]] = b[2]
+					hadBets = True
+
+			if hadBets > 0:
+				outputStr += str(game_id) + ". \"" + title + "\"\n"
+				for k in optionBets:
+					outputStr += "\t" + str(k) + ". " + str(optionBets[k]) + " OBucks on \"" + options[k] + "\"\n"
+
+		await ctx.send(f"Listing all bets from user: @{userName}:\n```\n{outputStr}\n```")
 
 	@commands.command(name="listbetoptions", aliases=["lbo"])
 	async def listbetoptions(self, ctx, game_id = None):
