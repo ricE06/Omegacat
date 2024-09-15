@@ -171,6 +171,52 @@ class Gambling(commands.Cog):
 		user = await self.client.fetch_user(user_id)
 		return user.name
 
+	@commands.command(name="removeuserbets")
+	@admin
+	async def removeuserbets(self, ctx, game_id = None, user = None):
+		"""Remove all of a users bets on a topic, refunding them. Format: `$removeuserbets [game_id] [username]`"""
+		if game_id is None:
+			await ctx.send(f"Format: `$removeuserbets [game_id] [username]`")
+			return
+		try:
+			game_id = int(game_id)
+			if game_id <= 0 or game_id >= self.get_next_id():
+				await ctx.send("Game ID could not be parsed!")
+				return
+		except ValueError:
+			await ctx.send("Game ID could not be parsed!")
+			return
+		if user is None:
+			await ctx.send("Invalid user!")
+			return
+
+
+		# Get important info
+		user_id = strip(user)
+		Economy = self.client.get_cog("Economy") # allows us to use Economy methods
+		total_pot = self.get_from_meta(game_id, "total_pot")
+		
+		isActive = self.get_from_meta(game_id, "active") == 1
+		if isActive == False:
+			await ctx.send("You can only affect active betting topics!")
+			return
+
+		game_bets = self.get_game(game_id)
+
+		subtractedAmount = 0
+		for k,b in enumerate(game_bets):
+			if b[0] == user_id:
+				subtractedAmount += b[2]
+
+
+		# Deletes row in table 
+		cur.execute(f"DELETE FROM game_{game_id} WHERE user_id = {user_id}")
+		self.set_to_meta(game_id, total_pot-subtractedAmount, "total_pot")
+		con.commit()
+		
+		await ctx.send(f"Removed all of {user}'s bets on topic: {game_id}, refunding a total of: {subtractedAmount} OBucks")
+
+		Economy.add_balance(user_id, subtractedAmount)
 
 	@commands.command(name="bet")
 	async def bet(self, ctx, game_id = None, option_id = None, bet_amount = 0):
