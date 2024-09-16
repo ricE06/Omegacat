@@ -276,8 +276,10 @@ class Utility(commands.Cog):
 		await ctx.send(f"Gathering {numMessages} messages in polls channel, this may take a while...")
 		pollsDict = {'messages':[]}
 		pollschannel=self.client.get_channel(1189032054822817832)
+		progressCount = 0
 		async for message in pollschannel.history(limit=messagelimit):
 			content = message.content
+			progressCount += 1
 			if "\"" in content[0] or "“" in content[0] and "(open)" not in content: # make sure it is probably a poll message
 				if len(message.reactions) > 1:
 					reactions = {}
@@ -288,7 +290,9 @@ class Utility(commands.Cog):
 							reactions[str(reaction.emoji)].append(user.name)
 					msg = {'messageid':message.id,'reactions':reactions}
 					pollsDict['messages'].append(msg)
+					print(f"Retrieved message {progressCount} of {numMessages}")
 
+		print(f"Completed, gathered {progressCount} messages")
 		with open('temp.json', 'w') as f:
 			json.dump(pollsDict, f)
 		await ctx.send("Finished scraping polls channel, here is the resulting file:")
