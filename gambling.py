@@ -594,6 +594,7 @@ will be treated as individual bets."""
 		result = self.roll_roulette()
 		bet_list_str = self.convert_betlist_to_string(bet_list)
 		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
+		spinmsg = await ctx.send(f"***Spinning...***")
 		await asyncio.sleep(3)
 
 		# Processes output and adds to user balance		
@@ -605,11 +606,11 @@ will be treated as individual bets."""
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await ctx.send(f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+				await spinmsg.edit(content=f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
 			else:
 				win_amount = int(multiplier * bet_amount)
 				Economy.add_balance(user_id, win_amount)
-				await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
+				await spinmsg.edit(content=f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
 			return
 		else:
 			if result == 37:
@@ -618,10 +619,10 @@ will be treated as individual bets."""
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await ctx.send(f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
+				await spinmsg.edit(content=f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
 			else:
 				Economy.add_balance(user_id, -bet_amount)
-				await ctx.send(f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
+				await spinmsg.edit(content=f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
 			return
 
 	@commands.command(name="cogtest")
