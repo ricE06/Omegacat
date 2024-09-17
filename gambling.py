@@ -599,6 +599,8 @@ will be treated as individual bets."""
 		# Processes output and adds to user balance		
 		result = int(result)
 		if result in bet_list:
+			if result == 37:
+				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
@@ -610,6 +612,8 @@ will be treated as individual bets."""
 				await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
 			return
 		else:
+			if result == 37:
+				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
