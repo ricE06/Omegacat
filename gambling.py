@@ -594,7 +594,7 @@ will be treated as individual bets."""
 		result = self.roll_roulette()
 		bet_list_str = self.convert_betlist_to_string(bet_list)
 		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
-		spinmsg = await ctx.send(f"***Spinning...***")
+		spinmsg = await ctx.send(f"***Spinning...*** <a:roulette:1285718477373706314>")
 		await asyncio.sleep(3)
 
 		# Processes output and adds to user balance		
