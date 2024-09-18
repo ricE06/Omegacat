@@ -519,8 +519,13 @@ O-bucks to the winners"""
 			list_formatted.append((await self.get_username(key), winners[key]))
 		list_header = ("User", "Winnings")
 		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
-		await ctx.send(f"Winnings:```\n{output}\n```")
 
+		winnersPing = "🎉 Congratulations to: "
+		for key in winners:
+			if winners[key] > 0:
+				winnersPing += "<@" + str(key) + ">, "
+				
+		await ctx.send(f"Winnings:```\n{output}\n```\n{winnersPing[:-2]}!")
 	
 
 	@commands.command(name="createbet")
