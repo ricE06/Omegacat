@@ -600,7 +600,8 @@ will be treated as individual bets."""
 		bet_list_str = self.convert_betlist_to_string(bet_list)
 		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
 		spinmsg = await ctx.send(f"***Spinning...*** <a:roulette:1285718477373706314>")
-		await asyncio.sleep(3)
+
+		outputMessage = ""
 
 		# Processes output and adds to user balance		
 		result = int(result)
@@ -611,12 +612,11 @@ will be treated as individual bets."""
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await spinmsg.edit(content=f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+				outputMessage = f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!"
 			else:
 				win_amount = int(multiplier * bet_amount)
 				Economy.add_balance(user_id, win_amount)
-				await spinmsg.edit(content=f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
-			return
+				outputMessage = f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling."
 		else:
 			if result == 37:
 				result = 0
@@ -624,11 +624,16 @@ will be treated as individual bets."""
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await spinmsg.edit(content=f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
+				outputMessage = f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp."
 			else:
 				Economy.add_balance(user_id, -bet_amount)
-				await spinmsg.edit(content=f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
-			return
+				outputMessage = f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
+
+		# Delay, then send result. This way it subtracts from the wallet of the
+		# player before waiting, preventing using the same money multiple times
+		await asyncio.sleep(3)
+		await spinmsg.edit(content=f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+		return
 
 	@commands.command(name="cogtest")
 	async def cogtest(self, ctx):
