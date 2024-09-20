@@ -171,6 +171,52 @@ class Gambling(commands.Cog):
 		user = await self.client.fetch_user(user_id)
 		return user.name
 
+	@commands.command(name="removeuserbets")
+	@admin
+	async def removeuserbets(self, ctx, game_id = None, user = None):
+		"""Remove all of a users bets on a topic, refunding them. Format: `$removeuserbets [game_id] [username]`"""
+		if game_id is None:
+			await ctx.send(f"Format: `$removeuserbets [game_id] [username]`")
+			return
+		try:
+			game_id = int(game_id)
+			if game_id <= 0 or game_id >= self.get_next_id():
+				await ctx.send("Game ID could not be parsed!")
+				return
+		except ValueError:
+			await ctx.send("Game ID could not be parsed!")
+			return
+		if user is None:
+			await ctx.send("Invalid user!")
+			return
+
+
+		# Get important info
+		user_id = strip(user)
+		Economy = self.client.get_cog("Economy") # allows us to use Economy methods
+		total_pot = self.get_from_meta(game_id, "total_pot")
+		
+		isActive = self.get_from_meta(game_id, "active") == 1
+		if isActive == False:
+			await ctx.send("You can only affect active betting topics!")
+			return
+
+		game_bets = self.get_game(game_id)
+
+		subtractedAmount = 0
+		for k,b in enumerate(game_bets):
+			if b[0] == user_id:
+				subtractedAmount += b[2]
+
+
+		# Deletes row in table 
+		cur.execute(f"DELETE FROM game_{game_id} WHERE user_id = {user_id}")
+		self.set_to_meta(game_id, total_pot-subtractedAmount, "total_pot")
+		con.commit()
+		
+		await ctx.send(f"Removed all of {user}'s bets on topic: {game_id}, refunding a total of: {subtractedAmount} OBucks")
+
+		Economy.add_balance(user_id, subtractedAmount)
 
 	@commands.command(name="bet")
 	async def bet(self, ctx, game_id = None, option_id = None, bet_amount = 0):
@@ -278,6 +324,39 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 		await ctx.send(f"Status successfully changed.\nBets for topic \n**`\"{title}\"`**\nAre no longer accepted")
 
 
+	@commands.command(name="mybets")
+	async def mybets(self, ctx):
+		"""Returns a list of all options and topics you have bet on"""
+
+		outputStr = ""
+		creator_id = ctx.author.id
+		userName = await self.get_username(creator_id)
+		for game_id in range(0,self.get_next_id()):
+			title = self.get_from_meta(game_id, "title")
+			options = self.get_from_meta(game_id, "options")
+			if options == None:
+				continue
+			options = options.split(",")
+			if self.get_from_meta(game_id, "active") == 0:
+				continue
+			game_bets = self.get_game(game_id)
+
+			optionBets = {}
+			hadBets = False
+			for k,b in enumerate(game_bets):
+				if b[0] == creator_id:
+					if b[1] in optionBets:
+						optionBets[b[1]] += b[2]
+					else:
+						optionBets[b[1]] = b[2]
+					hadBets = True
+
+			if hadBets > 0:
+				outputStr += str(game_id) + ". \"" + title + "\"\n"
+				for k in optionBets:
+					outputStr += "\t" + str(k) + ". " + str(optionBets[k]) + " OBucks on \"" + options[k] + "\"\n"
+
+		await ctx.send(f"Listing all bets from user: @{userName}:\n```\n{outputStr}\n```")
 
 	@commands.command(name="listbetoptions", aliases=["lbo"])
 	async def listbetoptions(self, ctx, game_id = None):
@@ -440,8 +519,13 @@ O-bucks to the winners"""
 			list_formatted.append((await self.get_username(key), winners[key]))
 		list_header = ("User", "Winnings")
 		output = t2a(header=list_header, body=list_formatted, first_col_heading=True, alignments=Alignment.LEFT)
-		await ctx.send(f"Winnings:```\n{output}\n```")
 
+		winnersPing = "🎉 Congratulations to: "
+		for key in winners:
+			if winners[key] > 0:
+				winnersPing += "<@" + str(key) + ">, "
+				
+		await ctx.send(f"Winnings:```\n{output}\n```\n{winnersPing[:-2]}!")
 	
 
 	@commands.command(name="createbet")
@@ -515,31 +599,41 @@ will be treated as individual bets."""
 		result = self.roll_roulette()
 		bet_list_str = self.convert_betlist_to_string(bet_list)
 		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
-		await asyncio.sleep(3)
+		spinmsg = await ctx.send(f"***Spinning...*** <a:roulette:1285718477373706314>")
+
+		outputMessage = ""
 
 		# Processes output and adds to user balance		
 		result = int(result)
 		if result in bet_list:
+			if result == 37:
+				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await ctx.send(f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+				outputMessage = f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!"
 			else:
 				win_amount = int(multiplier * bet_amount)
 				Economy.add_balance(user_id, win_amount)
-				await ctx.send(f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling.")
-			return
+				outputMessage = f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling."
 		else:
+			if result == 37:
+				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, 2*bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				await ctx.send(f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp.")
+				outputMessage = f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp."
 			else:
 				Economy.add_balance(user_id, -bet_amount)
-				await ctx.send(f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big.")
-			return
+				outputMessage = f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
+
+		# Delay, then send result. This way it subtracts from the wallet of the
+		# player before waiting, preventing using the same money multiple times
+		await asyncio.sleep(3)
+		await spinmsg.edit(content=f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+		return
 
 	@commands.command(name="cogtest")
 	async def cogtest(self, ctx):

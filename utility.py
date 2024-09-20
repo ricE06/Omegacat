@@ -10,6 +10,7 @@ import requests
 from table2ascii import table2ascii as t2a, PresetStyle
 from table2ascii import Alignment
 import sqlite3
+import json
 
 
 # Connect to the database
@@ -264,6 +265,39 @@ class Utility(commands.Cog):
 		con.commit()
 		await ctx.send("User added to blacklist and entries deleted.")
 
+	@commands.command(name="compilepolldata")
+	@admin
+	async def compilepolldata(self, ctx, messagelimit=None):
+		"""Creates a .JSON file listing all messages in #polls, with an array of all reactions and user reactors"""
+		numMessages = "all"
+		if messagelimit != None:
+			numMessages = str(messagelimit)
+			messagelimit = int(messagelimit)
+		await ctx.send(f"Gathering {numMessages} messages in polls channel, this may take a while...")
+		pollsDict = {'messages':[]}
+		pollschannel=self.client.get_channel(1189032054822817832)
+		progressCount = 0
+		channelMessages = await pollschannel.history(limit=messagelimit).flatten()
+		async for message in channelMessages:
+			content = message.content
+			progressCount += 1
+			if "\"" in content[0] or "“" in content[0] and "(open)" not in content: # make sure it is probably a poll message
+				if len(message.reactions) > 1:
+					reactions = {}
+					for reaction in message.reactions:
+						reactions[str(reaction.emoji)] = []
+						users = [user async for user in reaction.users()]
+						for user in users:
+							reactions[str(reaction.emoji)].append(user.name)
+					msg = {'messageid':message.id,'reactions':reactions}
+					pollsDict['messages'].append(msg)
+					print(f"Retrieved message {progressCount} of {numMessages}")
+
+		print(f"Completed, gathered {progressCount} messages")
+		with open('temp.json', 'w') as f:
+			json.dump(pollsDict, f)
+		await ctx.send("Finished scraping polls channel, here is the resulting file:")
+		await ctx.send(file=discord.File("temp.json"))
 
 
 async def setup(client):
