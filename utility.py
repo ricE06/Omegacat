@@ -277,8 +277,7 @@ class Utility(commands.Cog):
 		pollsDict = {'messages':[]}
 		pollschannel=self.client.get_channel(1189032054822817832)
 		progressCount = 0
-		channelMessages = await pollschannel.history(limit=messagelimit).flatten()
-		async for message in channelMessages:
+		async for message in pollschannel.history(limit=messagelimit):
 			content = message.content
 			progressCount += 1
 			if "\"" in content[0] or "“" in content[0] and "(open)" not in content: # make sure it is probably a poll message
