@@ -82,8 +82,8 @@ async def show_active(channel):
 @client.event
 async def on_message(message):
     if message.channel.id != COUNT_CHANNEL or message.author.id == 1180364917417721957 or message.content[0] == ".":
-        # if sanitize(message.content) == "active":
-        #    await show_active(message.channel)
+        if sanitize(message.content) == "active":
+           await show_active(message.channel)
         await client.process_commands(message)
         return
     contents = sanitize(message.content)
