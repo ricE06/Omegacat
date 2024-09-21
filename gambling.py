@@ -594,6 +594,9 @@ will be treated as individual bets."""
 			await ctx.send("You didn't place any valid bets! Placing all bets on 1 instead.")
 			bet_list = [1]
 
+		# Pay bet_amount immediately
+		Economy.add_balance(user_id, -bet_amount)
+
 		# Simulates roulette
 		multiplier = (36.0 / len(bet_list))-1
 		result = self.roll_roulette()
@@ -610,29 +613,29 @@ will be treated as individual bets."""
 				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
-				lose_amount = min(cur, 2*bet_amount)
-				Economy.add_balance(user_id, -lose_amount)
-				outputMessage = f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!"
+				win_amount = min(cur, bet_amount)
+				Economy.add_balance(user_id, -win_amount)
+				outputMessage = f"The wheel spun a 00 and you won {2*win_amount} O-bucks! That's neat. Now you have even more to use for gambling!"
 			else:
 				win_amount = int(multiplier * bet_amount)
-				Economy.add_balance(user_id, win_amount)
+				Economy.add_balance(user_id, win_amount+bet_amount) # win amount + original payment
 				outputMessage = f"The wheel spun a {result} and you won {win_amount} O-bucks! This is your sign to keep gambling."
 		else:
 			if result == 37:
 				result = 0
 			if result == 38:
 				cur = Economy.get_balance(user_id)
-				lose_amount = min(cur, 2*bet_amount)
+				lose_amount = min(cur, bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				outputMessage = f"The wheel spun a 00 and you lost {lose_amount} O-bucks! Womp womp."
+				outputMessage = f"The wheel spun a 00 and you lost {2*lose_amount} O-bucks! Womp womp."
 			else:
-				Economy.add_balance(user_id, -bet_amount)
+				#Economy.add_balance(user_id, -bet_amount)
 				outputMessage = f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
 
 		# Delay, then send result. This way it subtracts from the wallet of the
 		# player before waiting, preventing using the same money multiple times
 		await asyncio.sleep(3)
-		await spinmsg.edit(content=f"The wheel spun a 00 and you won {lose_amount} O-bucks! That's neat. Now you have even more to use for gambling!")
+		await spinmsg.edit(content=outputMessage)
 		return
 
 	@commands.command(name="cogtest")
