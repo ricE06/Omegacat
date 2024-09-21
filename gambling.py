@@ -577,7 +577,7 @@ will be treated as individual bets."""
 			await ctx.send("You need to place a bet!")
 			return
 		try:
-			bet_amount = abs(int(bet_amount))
+			bet_amount = int(bet_amount)
 		except ValueError or TypeError:
 			await ctx.send("Invalid bet amount!")
 			return
