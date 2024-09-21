@@ -572,36 +572,36 @@ Listing options for bet "Will horse A win?":\n\
 putting it as your first specifier. You can also use 1st, 2nd, or 3rd to bet on the dozens. You can use street \
 to bet on a street, and the next number is in the street. If not, you get the first 1-2-3 street. Any other numbers \
 will be treated as individual bets."""
+		user_id = ctx.author.id
 		# Check valid
 		if args is None:
-			await ctx.send("You need to place a bet!")
+			await ctx.send(f"You need to place a bet!  <@{user_id}>")
 			return
 		try:
 			bet_amount = int(bet_amount)
 		except ValueError or TypeError:
-			await ctx.send("Invalid bet amount!")
+			await ctx.send(f"Invalid bet amount!  <@{user_id}>")
 			return
-		user_id = ctx.author.id
 		Economy = self.client.get_cog("Economy")
 		if bet_amount <= 0:
 			bet_amount = Economy.get_balance(user_id)
-			await ctx.send("You must bet a positive value! Going all in instead...")
+			await ctx.send(f"You must bet a positive value! Going all in instead...  <@{user_id}>")
 		if not self.check_valid_bet(user_id, bet_amount):
-			await ctx.send("You don't have enough money, and I'm not in the mood for welfare today. Get lost.")
+			await ctx.send(f"You don't have enough money, and I'm not in the mood for welfare today. Get lost.  <@{user_id}>")
 			return
 		bet_list = self.parse_roulette_input(args)
 		if len(bet_list) == 0:
-			await ctx.send("You didn't place any valid bets! Placing all bets on 1 instead.")
+			await ctx.send(f"You didn't place any valid bets! Placing all bets on 1 instead.  <@{user_id}>")
 			bet_list = [1]
 
-		# Pay bet_amount immediately
+		# Subtract bet_amount immediately
 		Economy.add_balance(user_id, -bet_amount)
 
 		# Simulates roulette
 		multiplier = (36.0 / len(bet_list))-1
 		result = self.roll_roulette()
 		bet_list_str = self.convert_betlist_to_string(bet_list)
-		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!")
+		await ctx.send(f"You bet {bet_amount} O-bucks on `{bet_list_str}`, with a multiplier of {int(multiplier*100)/100}. Good luck!  <@{user_id}>")
 		spinmsg = await ctx.send(f"***Spinning...*** <a:roulette:1285718477373706314>")
 
 		outputMessage = ""
@@ -614,7 +614,7 @@ will be treated as individual bets."""
 			if result == 38:
 				cur = Economy.get_balance(user_id)
 				win_amount = min(cur, bet_amount)
-				Economy.add_balance(user_id, -win_amount)
+				Economy.add_balance(user_id, win_amount)
 				outputMessage = f"The wheel spun a 00 and you won {2*win_amount} O-bucks! That's neat. Now you have even more to use for gambling!"
 			else:
 				win_amount = int(multiplier * bet_amount)
@@ -627,7 +627,7 @@ will be treated as individual bets."""
 				cur = Economy.get_balance(user_id)
 				lose_amount = min(cur, bet_amount)
 				Economy.add_balance(user_id, -lose_amount)
-				outputMessage = f"The wheel spun a 00 and you lost {2*lose_amount} O-bucks! Womp womp."
+				outputMessage = f"The wheel spun a 00 and you lost {2*lose_amount+bet_amount} O-bucks! Womp womp."
 			else:
 				#Economy.add_balance(user_id, -bet_amount)
 				outputMessage = f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
@@ -635,7 +635,7 @@ will be treated as individual bets."""
 		# Delay, then send result. This way it subtracts from the wallet of the
 		# player before waiting, preventing using the same money multiple times
 		await asyncio.sleep(3)
-		await spinmsg.edit(content=outputMessage)
+		await spinmsg.edit(content=outputMessage + f"  <@{user_id}>")
 		return
 
 	@commands.command(name="cogtest")
