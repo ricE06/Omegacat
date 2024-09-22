@@ -631,7 +631,11 @@ will be treated as individual bets."""
 			else:
 				#Economy.add_balance(user_id, -bet_amount)
 				outputMessage = f"The wheel spun a {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
-
+		
+		# Make sure user balance never goes below 0
+		cur = Economy.get_balance(user_id)
+		Economy.set_balance(user_id, max(0, cur))
+		
 		# Delay, then send result. This way it subtracts from the wallet of the
 		# player before waiting, preventing using the same money multiple times
 		await asyncio.sleep(3)
