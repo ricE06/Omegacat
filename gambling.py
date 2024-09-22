@@ -171,7 +171,7 @@ class Gambling(commands.Cog):
 		user = await self.client.fetch_user(user_id)
 		return user.name
 
-	@commands.command(name="removeuserbets")
+	@commands.command(name="removeuserbets", hidden=True)
 	@admin
 	async def removeuserbets(self, ctx, game_id = None, user = None):
 		"""Remove all of a users bets on a topic, refunding them. Format: `$removeuserbets [game_id] [username]`"""
@@ -638,7 +638,7 @@ will be treated as individual bets."""
 		await spinmsg.edit(content=outputMessage + f"  <@{user_id}>")
 		return
 
-	@commands.command(name="cogtest")
+	@commands.command(name="cogtest", hidden=True)
 	async def cogtest(self, ctx):
 		"""Simple tester command to make sure the cog is loaded."""
 		await ctx.send("the cog has been loaded")
