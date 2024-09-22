@@ -148,7 +148,37 @@ class StockMarket(commands.Cog):
 
 		Economy.add_balance(user_id, pricePerShare*amount)
 		
-		await ctx.send(f"You successfully sold {amount} shares of `{ticker.upper()}`, valued at ${amount*pricePerShare}!\nYou now have {shares} shares of `{ticker.upper()}`, and a total equity of ${shares*pricePerShare}")
+		await ctx.send(f"You successfully sold **{amount}** shares of `{ticker.upper()}`, valued at **${amount*pricePerShare}**!\nYou now have **{shares}** shares of `{ticker.upper()}`, and a total equity of **${shares*pricePerShare}**")
+
+
+	@commands.command(name="quote")
+	async def quote(self, ctx, ticker = None):
+		"""Gets the current market price of a stock. Format: `$quote [ticker]`"""
+		user_id = ctx.author.id
+
+		if self.get_from_meta(user_id) == None:
+			self.create_user(user_id)
+
+		if ticker is None:
+			await ctx.send(f"Format: `$quote [ticker]`")
+			return
+		
+		# Fetch quote of current price per share
+		pricePerShare = 100000000
+		try:
+			pricePerShare = self.get_stock_price(ticker)
+			if pricePerShare == None:
+				await ctx.send("Ticker could not be parsed!")
+				return
+			pricePerShare = int(pricePerShare*100)/100
+		except ValueError:
+			await ctx.send("Ticker could not be parsed!")
+			return
+		fiftyDayMovingAverage = int(100*stock_info.get_data(ticker, interval='1d')['close'][-50:].mean())/100.0
+		todaysChange = int(100*(pricePerShare-stock_info.get_data(ticker, interval='1d')['close'][-2:][0]))/100.0
+		#todaysChange = int(stock_info.get_data(ticker, interval='1d')['close'][-2:][1] - pricePerShare)
+		
+		await ctx.send(f"`{ticker.upper()}` is trading at a price of **${pricePerShare}**!\nFifty day moving average: **${fiftyDayMovingAverage}**\nTodays change: **${todaysChange}**")
 
 
 	@commands.command(name="buystock")
