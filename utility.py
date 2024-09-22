@@ -254,7 +254,7 @@ class Utility(commands.Cog):
 		con.commit()
 		await ctx.send("Name successfully added.")
 
-	@commands.command(name="blacklist")
+	@commands.command(name="blacklist", hidden=True)
 	@admin
 	async def blacklist(self, ctx, target):
 		"""Adds a user to the blacklist."""
@@ -265,7 +265,8 @@ class Utility(commands.Cog):
 		con.commit()
 		await ctx.send("User added to blacklist and entries deleted.")
 
-	@commands.command(name="compilepolldata")
+
+	@commands.command(name="compilepolldata", hidden=True)
 	@admin
 	async def compilepolldata(self, ctx, messagelimit=None):
 		"""Creates a .JSON file listing all messages in #polls, with an array of all reactions and user reactors"""
@@ -297,6 +298,7 @@ class Utility(commands.Cog):
 			json.dump(pollsDict, f)
 		await ctx.send("Finished scraping polls channel, here is the resulting file:")
 		await ctx.send(file=discord.File("temp.json"))
+
 
 
 async def setup(client):
