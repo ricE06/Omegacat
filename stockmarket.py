@@ -84,8 +84,11 @@ class StockMarket(commands.Cog):
 	
 	def get_stocks(self, user_id):
 		"""Returns a tuple of tuples of all user stock positions."""
-		res = cur.execute(f"SELECT ticker, shares, average_cost FROM u{user_id} ORDER BY shares DESC")
-		return res.fetchall()
+		try:
+			res = cur.execute(f"SELECT ticker, shares, average_cost FROM u{user_id} ORDER BY shares DESC")
+			return res.fetchall()
+		except:
+			return None
 
 	def truncateStr(self, data, chars):
 		return (data[:chars-1] + '…') if len(data) > chars else data
@@ -251,8 +254,12 @@ class StockMarket(commands.Cog):
 		user_id = ctx.author.id
 		userName = await self.get_username(user_id)
 		stockPositions = self.get_stocks(user_id)
+		if stockPositions == None:
+			await ctx.send(f"You don't have a stock portfolio yet!")
+			return
 		list_formatted = []
-		totalPL = 0;
+		totalPL = 0
+		totalEquity = 0
 		for stock in stockPositions:
 			ticker = stock[0]
 			shares = stock[1]
@@ -263,7 +270,12 @@ class StockMarket(commands.Cog):
 			if shares > 0:
 				list_formatted.append((ticker.upper(),shares,"$" + str(pricePerShare),"$" + str(int(average_cost)),"$" + str(int(pricePerShare*shares)),"$" + str(int(average_cost*shares-pricePerShare*shares))))
 				totalPL += int(average_cost*shares-pricePerShare*shares)
-		
+				totalEquity += int(pricePerShare*shares)
+
+		if totalEquity == 0:
+			await ctx.send(f"You don't have any stocks in your portfolio!")
+			return
+
 		list_header = ("Ticker", "Shares", "Price", "Avg Cost", "Equity", "P/L")
 
 		outputStr = t2a(header=list_header, body=list_formatted, first_col_heading=False, alignments=Alignment.RIGHT)
