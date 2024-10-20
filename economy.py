@@ -11,22 +11,22 @@ con = sqlite3.connect("economy.db")
 cur = con.cursor()
 # economy.db has the following tables:
 # table - wallet
-#     col1 - id (int) - KEY
-#     col2 - balance (int) - default 0
-#     col3 - last_daily (int) - default 0
+#	 col1 - id (int) - KEY
+#	 col2 - balance (int) - default 0
+#	 col3 - last_daily (int) - default 0
 
 # admin wrapper
 # def admin(func):
 
-#     async def wrapper(self, ctx, *args, **kwargs):
-#         ADMINS = (732415222706339840,)
-#         if ctx.author.id not in ADMINS:
-#             await ctx.send("Unfortunately, you are too weak and pathetic to comprehend this power. Sit down.")
-#             return
+#	 async def wrapper(self, ctx, *args, **kwargs):
+#		 ADMINS = (732415222706339840,)
+#		 if ctx.author.id not in ADMINS:
+#			 await ctx.send("Unfortunately, you are too weak and pathetic to comprehend this power. Sit down.")
+#			 return
 
-#         await func(self, ctx, *args, **kwargs)
+#		 await func(self, ctx, *args, **kwargs)
 
-#     return wrapper
+#	 return wrapper
 
 
 class Economy(commands.Cog):
@@ -124,7 +124,7 @@ class Economy(commands.Cog):
 			self.add_balance(user_id, 1)
 			await ctx.send("Omegacat is kind. Worship omegacat. Don't do something stupid with this dollar.")
 
-	@commands.command(name="secret_sacrifice")
+	@commands.command(name="secret_sacrifice", hidden=True)
 	async def secret(self, ctx):
 		"""Halves your money."""
 		user_id = ctx.author.id 
@@ -177,7 +177,7 @@ class Economy(commands.Cog):
 
 
 
-	@commands.command(name="setbal")
+	@commands.command(name="setbal", hidden=True)
 	@admin
 	async def admin_set_balance(self, ctx, new_balance, user_id = None):
 		"""ADMIN COMMAND
