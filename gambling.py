@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from helper import strip, admin
+from helper import strip, admin, blacklist_enable
 import time
 import datetime
 import math
@@ -15,6 +15,9 @@ from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 con = sqlite3.connect("betting.db")
 cur = con.cursor()
 
+last_use_times = {} # for roulette, key is user id, value is last timestamp.
+
+
 #cur.execute(f"CREATE TABLE meta (game_id int primary key, title text, description text, creator_id int default 0, active int default 1, options text,server int default 0, total_pot int default 0, status int default 0, type int default 0)")
 #con.commit()
 
@@ -22,7 +25,6 @@ class Gambling(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 		self.roulette_aliases = {"red": ("r", "red"), "black": ("b", "black"), "street": ("street", "str", "row"), 1: ("1st", "first", "112"), 2: ("2nd", "second", "212"), 3: ("3rd", "third", "312"), 37:"0", 38:"00"}
-
 
 	def check_valid_bet(self, user_id, bet_amount):
 		Economy = self.client.get_cog("Economy")
@@ -567,12 +569,18 @@ Listing options for bet "Will horse A win?":\n\
 
 	# Roulette
 	@commands.command(name="roulette")
+    @blacklist_enabled
 	async def roulette(self, ctx, bet_amount="a", *args):
 		"""Play roulette. Format: `$roulette [bet_amount] [bet_specifier]`. You can bet on red or black by \
 putting it as your first specifier. You can also use 1st, 2nd, or 3rd to bet on the dozens. You can use street \
 to bet on a street, and the next number is in the street. If not, you get the first 1-2-3 street. Any other numbers \
 will be treated as individual bets."""
 		user_id = ctx.author.id
+        last_bet_time = last_use_times.get(user_id, 0)
+        if time.time() - last_bet_time < 10:
+            ctx.send("You are being rate limited.")
+            return
+        last_use_times[user_id] = time.time()
 		# Check valid
 		if args is None:
 			await ctx.send(f"You need to place a bet!  <@{user_id}>")
