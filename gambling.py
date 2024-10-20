@@ -569,7 +569,7 @@ Listing options for bet "Will horse A win?":\n\
 
 	# Roulette
 	@commands.command(name="roulette")
-    @blacklist_enabled
+    @blacklist_enable
 	async def roulette(self, ctx, bet_amount="a", *args):
 		"""Play roulette. Format: `$roulette [bet_amount] [bet_specifier]`. You can bet on red or black by \
 putting it as your first specifier. You can also use 1st, 2nd, or 3rd to bet on the dozens. You can use street \
