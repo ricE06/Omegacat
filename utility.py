@@ -261,7 +261,7 @@ class Utility(commands.Cog):
 		with open('blacklist.txt', 'a') as f:
 			f.write(str(strip(target)) + "\n")
 			f.close()
-		cur.execute(f"DELETE FROM courseloadsk WHERE id = {strip(target)}")
+		cur.execute(f"DELETE FROM courseloads WHERE id = {strip(target)}")
 		con.commit()
 		await ctx.send("User added to blacklist and entries deleted.")
 

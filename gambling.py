@@ -569,19 +569,19 @@ Listing options for bet "Will horse A win?":\n\
 
 	# Roulette
 	@commands.command(name="roulette")
-    @blacklist_enable
+	@blacklist_enable
 	async def roulette(self, ctx, bet_amount="a", *args):
 		"""Play roulette. Format: `$roulette [bet_amount] [bet_specifier]`. You can bet on red or black by \
 putting it as your first specifier. You can also use 1st, 2nd, or 3rd to bet on the dozens. You can use street \
 to bet on a street, and the next number is in the street. If not, you get the first 1-2-3 street. Any other numbers \
 will be treated as individual bets."""
 		user_id = ctx.author.id
-        last_bet_time = last_use_times.get(user_id, 0)
-        if time.time() - last_bet_time < 10:
-            ctx.send("You are being rate limited.")
-            return
-        last_use_times[user_id] = time.time()
-		# Check valid
+		last_bet_time = last_use_times.get(user_id, 0)
+		if time.time() - last_bet_time < 5:
+			await ctx.send("You are being rate limited.")
+			return
+		last_use_times[user_id] = time.time()
+        # Check valid
 		if args is None:
 			await ctx.send(f"You need to place a bet!  <@{user_id}>")
 			return
