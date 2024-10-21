@@ -268,8 +268,8 @@ class StockMarket(commands.Cog):
 			pricePerShare = int(self.get_stock_price(ticker))
 
 			if shares > 0:
-				list_formatted.append((ticker.upper(),shares,"$" + str(pricePerShare),"$" + str(int(average_cost)),"$" + str(int(pricePerShare*shares)),"$" + str(int(average_cost*shares-pricePerShare*shares))))
-				totalPL += int(average_cost*shares-pricePerShare*shares)
+				list_formatted.append((ticker.upper(),shares,"$" + str(pricePerShare),"$" + str(int(average_cost)),"$" + str(int(pricePerShare*shares)),"$" + str(int(pricePerShare*shares-average_cost*shares))))
+				totalPL += int(pricePerShare*shares-average_cost*shares)
 				totalEquity += int(pricePerShare*shares)
 
 		if totalEquity == 0:
