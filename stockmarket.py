@@ -99,7 +99,7 @@ class StockMarket(commands.Cog):
 		return user.name
 
 	@commands.command(name="sellstock")
-	async def selltock(self, ctx, ticker = None, amount=None):
+	async def sellstock(self, ctx, ticker = None, amount=None):
 		"""Sells shares of a stock. Format: `$sellstock [ticker] [amount_of_shares]`"""
 		user_id = ctx.author.id
 
@@ -260,6 +260,7 @@ class StockMarket(commands.Cog):
 		list_formatted = []
 		totalPL = 0
 		totalEquity = 0
+		await ctx.send(f"Getting stock information...")
 		for stock in stockPositions:
 			ticker = stock[0]
 			shares = stock[1]
