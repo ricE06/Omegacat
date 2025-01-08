@@ -260,7 +260,7 @@ class StockMarket(commands.Cog):
 		list_formatted = []
 		totalPL = 0
 		totalEquity = 0
-		await ctx.send(f"Getting stock information...")
+		msg = await ctx.send(f"Getting stock information...")
 		for stock in stockPositions:
 			ticker = stock[0]
 			shares = stock[1]
@@ -280,7 +280,9 @@ class StockMarket(commands.Cog):
 		list_header = ("Ticker", "Shares", "Price", "Avg Cost", "Equity", "P/L")
 
 		outputStr = t2a(header=list_header, body=list_formatted, first_col_heading=False, alignments=Alignment.RIGHT)
-		await ctx.send(f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```")
+		outputMessage = f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```"
+		#await ctx.send(f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```")
+		await msg.edit(content=outputMessage)
 
 
 
