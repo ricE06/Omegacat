@@ -236,8 +236,8 @@ You can get the option_id and game_id by using commands $listbets and $listbetop
 			await ctx.send("Game ID could not be parsed!")
 			return
 		try:
-			if int(bet_amount) <= 0:
-				await ctx.send("Bet amount must be positive integer!")
+			if int(bet_amount) <= 1:
+				await ctx.send("Bet amount must be positive integer, and more than 1!")
 				return
 		except ValueError:
 			await ctx.send("Bet amount must be positive integer!")

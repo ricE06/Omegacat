@@ -99,7 +99,7 @@ class StockMarket(commands.Cog):
 		return user.name
 
 	@commands.command(name="sellstock")
-	async def selltock(self, ctx, ticker = None, amount=None):
+	async def sellstock(self, ctx, ticker = None, amount=None):
 		"""Sells shares of a stock. Format: `$sellstock [ticker] [amount_of_shares]`"""
 		user_id = ctx.author.id
 
@@ -260,6 +260,7 @@ class StockMarket(commands.Cog):
 		list_formatted = []
 		totalPL = 0
 		totalEquity = 0
+		msg = await ctx.send(f"Getting stock information...")
 		for stock in stockPositions:
 			ticker = stock[0]
 			shares = stock[1]
@@ -268,8 +269,8 @@ class StockMarket(commands.Cog):
 			pricePerShare = int(self.get_stock_price(ticker))
 
 			if shares > 0:
-				list_formatted.append((ticker.upper(),shares,"$" + str(pricePerShare),"$" + str(int(average_cost)),"$" + str(int(pricePerShare*shares)),"$" + str(int(average_cost*shares-pricePerShare*shares))))
-				totalPL += int(average_cost*shares-pricePerShare*shares)
+				list_formatted.append((ticker.upper(),shares,"$" + str(pricePerShare),"$" + str(int(average_cost)),"$" + str(int(pricePerShare*shares)),"$" + str(int(pricePerShare*shares-average_cost*shares))))
+				totalPL += int(pricePerShare*shares-average_cost*shares)
 				totalEquity += int(pricePerShare*shares)
 
 		if totalEquity == 0:
@@ -279,7 +280,9 @@ class StockMarket(commands.Cog):
 		list_header = ("Ticker", "Shares", "Price", "Avg Cost", "Equity", "P/L")
 
 		outputStr = t2a(header=list_header, body=list_formatted, first_col_heading=False, alignments=Alignment.RIGHT)
-		await ctx.send(f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```")
+		outputMessage = f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```"
+		#await ctx.send(f"Listing all positions for user: <@{user_id}>:\n```\n{outputStr}\n\nTotal P/L: ${totalPL}\n```")
+		await msg.edit(content=outputMessage)
 
 
 
