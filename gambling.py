@@ -31,7 +31,6 @@ class Gambling(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 		self.roulette_aliases = {"red": ("r", "red"), "black": ("b", "black"), "street": ("street", "str", "row"), 1: ("1st", "first", "112"), 2: ("2nd", "second", "212"), 3: ("3rd", "third", "312"), 37:"0", 38:"00"}
-		self.create_deck()
 
 	def create_deck(self):
 		suits = ["H", "D", "C", "S"]
@@ -50,6 +49,7 @@ class Gambling(commands.Cog):
 		return "heads" if raw == 1 else "tails"
 
 	def deal_blackjack(self, user, bet_amount):
+		self.create_deck()
 		cur_deck = self.blackjack_deck # copy full deck
 		dealed_cards = []
 		for i in range(4):
