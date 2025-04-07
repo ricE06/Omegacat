@@ -57,7 +57,6 @@ class Gambling(commands.Cog):
 			cur_deck.remove(selected_card)
 			dealed_cards.append(selected_card)
 		blackjack_data[user] = ([dealed_cards[0], dealed_cards[1]+"#"], [dealed_cards[2], dealed_cards[3]], cur_deck, bet_amount)
-		print(blackjack_data[user])
 		return blackjack_data[user]
 
 	def end_blackjack(self, user):
@@ -127,10 +126,10 @@ class Gambling(commands.Cog):
 			hand += rank_values[rank]
 		return hand
 
-	def sum_cards(self, card_values):
+	def sum_cards_best(self, card_values):
 		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":1}
-		hands = [0,0]
-		has_A = False
+		hands = [0]
+		num_aces = 0
 		h = 0
 		for value in card_values:
 			if len(value) >= 3: # do not sum hidden cards
@@ -138,11 +137,43 @@ class Gambling(commands.Cog):
 			rank = value[0]
 			hands[0] += rank_values[rank]
 			if rank == "A":
-				has_A = True
+				num_aces += 1
+
+		# Get all combinations of ace values
+		for a in range(num_aces):
+			hands.append(hands[a]+10)
+
+		best = 0
+		for h in hands:
+			if max(21-h, 0) < max(21-best, 0):
+				best = h
+
+		return best
+
+	def sum_cards(self, card_values):
+		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":1}
+		hands = [0]
+		num_aces = 0
+		h = 0
+		for value in card_values:
+			if len(value) >= 3: # do not sum hidden cards
+				continue
+			rank = value[0]
+			hands[0] += rank_values[rank]
+			if rank == "A":
+				num_aces += 1
 		out_str = f"{hands[0]}"
-		if has_A == True:
-			hands[1] = hands[0] + 10
-			out_str += f" or {hands[1]}"
+
+		# Get all combinations of ace values
+		for a in range(num_aces):
+			hands.append(hands[a]+10)
+			out_str += f" or {hands[a+1]}"
+
+		# If BJ
+		if len(card_values) == 2:
+			for h in hands:
+				if h == 21:
+					out_str += ", Blackjack!"
 
 		return out_str
 
@@ -696,7 +727,7 @@ Listing options for bet "Will horse A win?":\n\
 		result = self.hit_blackjack(user_id)
 
 		# display cards:
-		await ctx.send(f"**<@{user_id}> The Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`")
+		await ctx.send(f"**<@{user_id}> The Dealer's cards are:**\n{self.print_cards(result[0])}**Value:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`")
 
 		if self.calculate_loss(user_id) == False:
 			await ctx.send(f"**<@{user_id}>  Would you like to `$hit` or `$stay`?**")
@@ -712,7 +743,7 @@ Listing options for bet "Will horse A win?":\n\
 		return
 
 	# Black jack stay
-	@commands.command(name="stay", hidden=True)
+	@commands.command(name="stay", hidden=True, aliases=["stand"])
 	@blacklist_enable
 	async def stay(self, ctx):
 		"""Used to stay in blackjack. Format: `$stay`."""
@@ -729,29 +760,37 @@ Listing options for bet "Will horse A win?":\n\
 			c = c[:2] # unhide all cards
 			blackjack_data[user_id][0][i] = c
 
-		while self.sum_cards_highest(blackjack_data[user_id][0]) <= 16:
+		while self.sum_cards_best(blackjack_data[user_id][0]) <= 16:
 			self.hit_blackjack_dealer(user_id)
 
-		dealer_value = self.sum_cards_highest(blackjack_data[user_id][0])
+		dealer_value = self.sum_cards_best(blackjack_data[user_id][0])
 		if dealer_value > 21:
 			dealer_value = self.sum_cards_lowest(blackjack_data[user_id][0])
-		player_value = self.sum_cards_highest(blackjack_data[user_id][1])
+		player_value = self.sum_cards_best(blackjack_data[user_id][1])
 		if player_value > 21:
 			player_value = self.sum_cards_lowest(blackjack_data[user_id][1])
 
-		# display cards:
-		#await ctx.send(f"**<@{user_id}> The Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`")
+		got_blackjack = False
+		if player_value == 21 and len(blackjack_data[user_id][1]) == 2:
+			got_blackjack = True
+
 
 		if (player_value > dealer_value or dealer_value > 21) and player_value <= 21:
-			await ctx.send(f"**<@{user_id}> :tada: You won! :tada: :\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
-			win_amount = int(blackjack_data[user_id][3])
-			Economy.add_balance(user_id, win_amount*2) # win amount + original payment
-			await ctx.send(f"<@{user_id}>  You won {win_amount} O-bucks! This is your sign to keep gambling.")
+			await ctx.send(f"**<@{user_id}> :tada: You won! :tada: :\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**Value:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
+			original_bet = int(blackjack_data[user_id][3])
+			win_amount = int(original_bet*1.05)
+			if got_blackjack:
+				win_amount = int(win_amount*1.5)
+				Economy.add_balance(user_id, original_bet+win_amount) # win amount + original payment
+				await ctx.send(f"<@{user_id}>  You won {win_amount} O-bucks! Blackjack pays out 3 to 2. This is *definitely* your sign to keep gambling!")
+			else:
+				Economy.add_balance(user_id, original_bet+win_amount) # win amount + original payment
+				await ctx.send(f"<@{user_id}>  You won {win_amount} O-bucks! This is your sign to keep gambling.")
 		elif player_value == dealer_value:
 			await ctx.send(f"**<@{user_id}> It was a tie:\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
-			win_amount = int(blackjack_data[user_id][3])
-			Economy.add_balance(user_id, win_amount) # win amount + original payment
-			await ctx.send(f"<@{user_id}>  You got your original bet amount, {win_amount} O-bucks, back. Want to try again?")
+			original_bet = int(blackjack_data[user_id][3])
+			Economy.add_balance(user_id, original_bet) # win amount + original payment
+			await ctx.send(f"<@{user_id}>  You got your original bet amount, {original_bet} O-bucks, back. Want to try again?")
 		else:
 			await ctx.send(f"**<@{user_id}> You lost! :x::\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
 		
