@@ -5,6 +5,7 @@ import time
 import datetime
 import math
 import random
+import secrets
 import asyncio
 import sqlite3
 
@@ -17,18 +18,165 @@ cur = con.cursor()
 
 last_use_times = {} # for roulette, key is user id, value is last timestamp.
 
+# black jack table
+blackjack_data = {} # key is user id, value is tuple like: ([dealer hand array], [user hand array], [blackjack_deck array], bet_amount)
+
 
 #cur.execute(f"CREATE TABLE meta (game_id int primary key, title text, description text, creator_id int default 0, active int default 1, options text,server int default 0, total_pot int default 0, status int default 0, type int default 0)")
 #con.commit()
 
 class Gambling(commands.Cog):
+	blackjack_deck = []
+
 	def __init__(self, client):
 		self.client = client
 		self.roulette_aliases = {"red": ("r", "red"), "black": ("b", "black"), "street": ("street", "str", "row"), 1: ("1st", "first", "112"), 2: ("2nd", "second", "212"), 3: ("3rd", "third", "312"), 37:"0", 38:"00"}
 
+	def create_deck(self):
+		suits = ["H", "D", "C", "S"]
+		ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"]
+		self.blackjack_deck = []
+		for suit in suits:
+			for rank in ranks:
+				self.blackjack_deck.append(f"{rank}{suit}")
+
 	def check_valid_bet(self, user_id, bet_amount):
 		Economy = self.client.get_cog("Economy")
 		return (bet_amount <= Economy.get_balance(user_id)) and (bet_amount > 0) and (Economy.get_balance(user_id) > 0)
+
+	def flip_coin(self):
+		raw = random.randint(1, 2)
+		return "heads" if raw == 1 else "tails"
+
+	def deal_blackjack(self, user, bet_amount):
+		self.create_deck()
+		cur_deck = self.blackjack_deck # copy full deck
+		dealed_cards = []
+		for i in range(4):
+			selected_card = secrets.choice(cur_deck)
+			cur_deck.remove(selected_card)
+			dealed_cards.append(selected_card)
+		blackjack_data[user] = ([dealed_cards[0], dealed_cards[1]+"#"], [dealed_cards[2], dealed_cards[3]], cur_deck, bet_amount)
+		return blackjack_data[user]
+
+	def end_blackjack(self, user):
+		blackjack_data.pop(user, None)
+
+	def calculate_loss(self, user):
+		return self.sum_cards_lowest(blackjack_data[user][1]) > 21
+
+	def hit_blackjack(self, user):
+		selected_card = secrets.choice(blackjack_data[user][2])
+		blackjack_data[user][2].remove(selected_card)
+		blackjack_data[user][1].append(selected_card)
+		return blackjack_data[user]
+	def hit_blackjack_dealer(self, user):
+		selected_card = secrets.choice(blackjack_data[user][2])
+		blackjack_data[user][2].remove(selected_card)
+		blackjack_data[user][0].append(selected_card)
+		return blackjack_data[user]
+
+	def print_card(self, value):
+		suits = {"C":"\u2663", "H":"\u2665", "D":"\u2666", "S":"\u2660"}
+		rank = value[0]
+		if rank == "T":
+			rank = "10"
+		suit = suits[value[1]]
+		print(f"```\n┌────┐\n│{suit}  {rank}│\n│{rank}  {suit}│\n└────┘\n```")
+
+	def print_cards(self, card_values):
+		suits = {"C":"\u2663", "H":"\u2665", "D":"\u2666", "S":"\u2660"}
+		lines = ["","","",""]
+		for value in card_values:
+			rank = value[0]
+			suit = suits[value[1]]
+			rankR = " " + rank
+			suitR = " " + suit
+			if rank == "T":
+				rank = "10"
+				rankR = rank
+				suitR = suit
+			is_hidden = True if len(value) >= 3 else False
+			if is_hidden == False:
+				lines[0] += "┌────┐"
+				lines[1] += f"│{suit} {rankR}│"
+				lines[2] += f"│{rank} {suitR}│"
+				lines[3] += "└────┘"
+			else:
+				lines[0] += "┌────┐"
+				lines[1] += "│▒▒▒▒│"
+				lines[2] += "│▒▒▒▒│"
+				lines[3] += "└────┘"
+		final_string = f"```\n{lines[0]}\n{lines[1]}\n{lines[2]}\n{lines[3]}\n```"
+		return final_string
+
+
+	def sum_cards_lowest(self, card_values):
+		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":1}
+		hand = 0
+		for value in card_values:
+			rank = value[0]
+			hand += rank_values[rank]
+		return hand
+	def sum_cards_highest(self, card_values):
+		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":11}
+		hand = 0
+		for value in card_values:
+			rank = value[0]
+			hand += rank_values[rank]
+		return hand
+
+	def sum_cards_best(self, card_values):
+		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":1}
+		hands = [0]
+		num_aces = 0
+		h = 0
+		for value in card_values:
+			if len(value) >= 3: # do not sum hidden cards
+				continue
+			rank = value[0]
+			hands[0] += rank_values[rank]
+			if rank == "A":
+				num_aces += 1
+
+		# Get all combinations of ace values
+		for a in range(num_aces):
+			hands.append(hands[a]+10)
+
+		best = 0
+		for h in hands:
+			if max(21-h, 0) < max(21-best, 0):
+				best = h
+
+		return best
+
+	def sum_cards(self, card_values):
+		rank_values = {"2":2,"3":3,"4":4,"5":5,"6":6,"7":7,"8":8,"9":9,"T":10,"J":10,"Q":10,"K":10,"A":1}
+		hands = [0]
+		num_aces = 0
+		h = 0
+		for value in card_values:
+			if len(value) >= 3: # do not sum hidden cards
+				continue
+			rank = value[0]
+			hands[0] += rank_values[rank]
+			if rank == "A":
+				num_aces += 1
+		out_str = f"{hands[0]}"
+
+		# Get all combinations of ace values
+		for a in range(num_aces):
+			hands.append(hands[a]+10)
+			out_str += f" or {hands[a+1]}"
+
+		# If BJ
+		if len(card_values) == 2:
+			for h in hands:
+				if h == 21:
+					out_str += ", Blackjack!"
+
+		return out_str
+
 
 	def roll_roulette(self):
 		"Rolls the roulette wheel. Because 0 and 00 are different, this returns an int representation of 37->0 and 38->00."
@@ -566,6 +714,184 @@ Listing options for bet "Will horse A win?":\n\
 		self.create_game(ctx.guild.id, bet_title, "", bet_options, creator_id)
 		await ctx.send("Created new game with topic: '"+bet_title+"' and options: '"+bet_options+"'")
 		
+	# Black jack hit
+	@commands.command(name="hit", hidden=True)
+	@blacklist_enable
+	async def hit(self, ctx):
+		"""Used to hit in blackjack. Format: `$hit`."""
+		user_id = ctx.author.id
+		if user_id not in blackjack_data:
+			await ctx.send(f"You need to start blackjack game first using `$blackjack [bet_amount]`!  <@{user_id}>")
+			return
+
+		result = self.hit_blackjack(user_id)
+
+		# display cards:
+		await ctx.send(f"**<@{user_id}> The Dealer's cards are:**\n{self.print_cards(result[0])}**Value:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`")
+
+		if self.calculate_loss(user_id) == False:
+			await ctx.send(f"**<@{user_id}>  Would you like to `$hit` or `$stay`?**")
+		else:
+			await ctx.send(f"***<@{user_id}>  Bust!***")
+			# Display all cards
+			for i, c in enumerate(blackjack_data[user_id][0]):
+				c = c[:2] # unhide all cards
+				blackjack_data[user_id][0][i] = c
+			await ctx.send(f"**<@{user_id}> You lost! :x::\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`")
+			self.end_blackjack(user_id)
+
+		return
+
+	# Black jack stay
+	@commands.command(name="stay", hidden=True, aliases=["stand"])
+	@blacklist_enable
+	async def stay(self, ctx):
+		"""Used to stay in blackjack. Format: `$stay`."""
+		user_id = ctx.author.id
+		if user_id not in blackjack_data:
+			await ctx.send(f"You need to start blackjack game first using `$blackjack [bet_amount]`!  <@{user_id}>")
+			return
+
+		Economy = self.client.get_cog("Economy")
+
+		result = blackjack_data[user_id]
+
+		for i, c in enumerate(blackjack_data[user_id][0]):
+			c = c[:2] # unhide all cards
+			blackjack_data[user_id][0][i] = c
+
+		while self.sum_cards_best(blackjack_data[user_id][0]) <= 16:
+			self.hit_blackjack_dealer(user_id)
+
+		dealer_value = self.sum_cards_best(blackjack_data[user_id][0])
+		if dealer_value > 21:
+			dealer_value = self.sum_cards_lowest(blackjack_data[user_id][0])
+		player_value = self.sum_cards_best(blackjack_data[user_id][1])
+		if player_value > 21:
+			player_value = self.sum_cards_lowest(blackjack_data[user_id][1])
+
+		got_blackjack = False
+		if player_value == 21 and len(blackjack_data[user_id][1]) == 2:
+			got_blackjack = True
+
+
+		if (player_value > dealer_value or dealer_value > 21) and player_value <= 21:
+			await ctx.send(f"**<@{user_id}> :tada: You won! :tada: :\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**Value:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
+			original_bet = int(blackjack_data[user_id][3])
+			win_amount = int(original_bet*1.05)
+			if got_blackjack:
+				win_amount = int(win_amount*1.5)
+				Economy.add_balance(user_id, original_bet+win_amount) # win amount + original payment
+				await ctx.send(f"<@{user_id}>  You won {win_amount} O-bucks! Blackjack pays out 3 to 2. This is *definitely* your sign to keep gambling!")
+			else:
+				Economy.add_balance(user_id, original_bet+win_amount) # win amount + original payment
+				await ctx.send(f"<@{user_id}>  You won {win_amount} O-bucks! This is your sign to keep gambling.")
+		elif player_value == dealer_value:
+			await ctx.send(f"**<@{user_id}> It was a tie:\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
+			original_bet = int(blackjack_data[user_id][3])
+			Economy.add_balance(user_id, original_bet) # win amount + original payment
+			await ctx.send(f"<@{user_id}>  You got your original bet amount, {original_bet} O-bucks, back. Want to try again?")
+		else:
+			await ctx.send(f"**<@{user_id}> You lost! :x::\n__																					__\nThe Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{dealer_value}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{player_value}`")
+		
+		self.end_blackjack(user_id)
+
+		return
+
+	# Black jack
+	@commands.command(name="blackjack")
+	@blacklist_enable
+	async def blackjack(self, ctx, bet_amount="a"):
+		"""Blackjack. Format: `$blackjack [bet_amount]`."""
+		user_id = ctx.author.id
+		last_bet_time = last_use_times.get(user_id, 0)
+		if time.time() - last_bet_time < 5:
+			await ctx.send("You are being rate limited.")
+			return
+		last_use_times[user_id] = time.time()
+		if user_id in blackjack_data:
+			await ctx.send(f"Finish your existing blackjack game before starting another!  <@{user_id}>")
+			return
+		try:
+			bet_amount = int(bet_amount)
+		except ValueError or TypeError:
+			await ctx.send(f"Invalid bet amount!  <@{user_id}>")
+			return
+		Economy = self.client.get_cog("Economy")
+		if bet_amount <= 0:
+			bet_amount = Economy.get_balance(user_id)
+			await ctx.send(f"You must bet a positive value! Going all in instead...  <@{user_id}>")
+		if not self.check_valid_bet(user_id, bet_amount):
+			await ctx.send(f"You don't have enough money, and I'm not in the mood for welfare today. Get lost.  <@{user_id}>")
+			return
+
+		# Subtract bet_amount immediately
+		Economy.add_balance(user_id, -bet_amount)
+
+		# start a blackjack game
+		result = self.deal_blackjack(user_id, bet_amount)
+		await ctx.send(f"You bet {bet_amount} O-bucks. Good luck!  <@{user_id}>")
+
+		# display cards:
+		await ctx.send(f"**<@{user_id}> The Dealer's cards are:**\n{self.print_cards(result[0])}**With a total value of:** `{self.sum_cards(result[0])}`\n\n**And your cards are:\n**{self.print_cards(result[1])}**With a total value of:** `{self.sum_cards(result[1])}`\n\nWould you like to `$hit` or `$stay`?")
+		
+		return
+
+	# Coin flip
+	@commands.command(name="coinflip", aliases=["flipcoin"])
+	@blacklist_enable
+	async def coinflip(self, ctx, bet_amount="a", call=""):
+		"""Flip a coin. Format: `$coinflip [bet_amount] [heads/tails]`."""
+		user_id = ctx.author.id
+		last_bet_time = last_use_times.get(user_id, 0)
+		if time.time() - last_bet_time < 5:
+			await ctx.send("You are being rate limited.")
+			return
+		last_use_times[user_id] = time.time()
+		# Check valid
+		if call == "":
+			await ctx.send(f"You need to specify heads or tails!  <@{user_id}>")
+			return
+		try:
+			bet_amount = int(bet_amount)
+		except ValueError or TypeError:
+			await ctx.send(f"Invalid bet amount!  <@{user_id}>")
+			return
+		Economy = self.client.get_cog("Economy")
+		if bet_amount <= 0:
+			bet_amount = Economy.get_balance(user_id)
+			await ctx.send(f"You must bet a positive value! Going all in instead...  <@{user_id}>")
+		if not self.check_valid_bet(user_id, bet_amount):
+			await ctx.send(f"You don't have enough money, and I'm not in the mood for welfare today. Get lost.  <@{user_id}>")
+			return
+
+		# Subtract bet_amount immediately
+		Economy.add_balance(user_id, -bet_amount)
+
+		# flip the coin
+		result = self.flip_coin()
+		await ctx.send(f"You bet {bet_amount} O-bucks on `{call}`. Good luck!  <@{user_id}>")
+		spinmsg = await ctx.send(f"***Flipping...*** <a:coin:1285718477373706314>")
+
+		outputMessage = ""
+
+		# Processes output and adds to user balance		
+		if result.lower() == call.lower():
+			win_amount = int(bet_amount)
+			Economy.add_balance(user_id, win_amount+bet_amount) # win amount + original payment
+			outputMessage = f"The coin landed on {result} and you won {win_amount} O-bucks! This is your sign to keep gambling."
+		else:
+			outputMessage = f"The coin landed on {result} and you lost {bet_amount} O-bucks! Remember, 99% of gamblers quit before they win big."
+		
+		# Make sure user balance never goes below 0
+		cur = Economy.get_balance(user_id)
+		Economy.set_balance(user_id, max(0, cur))
+		
+		# Delay, then send result. This way it subtracts from the wallet of the
+		# player before waiting, preventing using the same money multiple times
+		await asyncio.sleep(2)
+		await spinmsg.edit(content=outputMessage + f"  <@{user_id}>")
+		return
 
 	# Roulette
 	@commands.command(name="roulette")
@@ -581,7 +907,7 @@ will be treated as individual bets."""
 			await ctx.send("You are being rate limited.")
 			return
 		last_use_times[user_id] = time.time()
-        # Check valid
+		# Check valid
 		if args is None:
 			await ctx.send(f"You need to place a bet!  <@{user_id}>")
 			return
