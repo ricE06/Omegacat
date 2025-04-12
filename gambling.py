@@ -145,7 +145,7 @@ class Gambling(commands.Cog):
 
 		best = 0
 		for h in hands:
-			if max(21-h, 0) < max(21-best, 0):
+			if h > best and h <= 21:
 				best = h
 
 		return best
@@ -760,7 +760,7 @@ Listing options for bet "Will horse A win?":\n\
 			c = c[:2] # unhide all cards
 			blackjack_data[user_id][0][i] = c
 
-		while self.sum_cards_best(blackjack_data[user_id][0]) <= 16:
+		while self.sum_cards_highest(blackjack_data[user_id][0]) <= 16:
 			self.hit_blackjack_dealer(user_id)
 
 		dealer_value = self.sum_cards_best(blackjack_data[user_id][0])
